@@ -1,7 +1,28 @@
 const h = React.createElement;
+
 const { useState, useMemo, useEffect, useRef } = React;
 
+const STORAGE_THEME = "nutrition-theme";
+
 const CATEGORIES = ["All", ...Array.from(new Set(FOODS.map(f => f.cat)))];
+
+// Themed background + watermark icon per category, shown behind the food grid
+const CATEGORY_THEME = {
+  "All":              { grad: "linear-gradient(135deg, #F1EADA, #E7DEC8)", emoji: "🍽️" },
+  "Fruits":           { grad: "linear-gradient(135deg, #FBDCC9, #F6C9A8)", emoji: "🍎" },
+  "Vegetables":       { grad: "linear-gradient(135deg, #DCE9CE, #C7DDB2)", emoji: "🥦" },
+  "Grains":           { grad: "linear-gradient(135deg, #F1E2BE, #E7CD92)", emoji: "🌾" },
+  "Legumes":          { grad: "linear-gradient(135deg, #E3DCC4, #CBBF95)", emoji: "🫘" },
+  "Dairy & Eggs":     { grad: "linear-gradient(135deg, #F5F1E2, #E6E9EF)", emoji: "🥛" },
+  "Meat & Poultry":   { grad: "linear-gradient(135deg, #EBC9C1, #DDA79B)", emoji: "🍗" },
+  "Fish & Seafood":   { grad: "linear-gradient(135deg, #CFE1E0, #AECBCB)", emoji: "🐟" },
+  "Nuts & Seeds":     { grad: "linear-gradient(135deg, #E7D3B8, #D3B48C)", emoji: "🥜" },
+  "Oils & Fats":      { grad: "linear-gradient(135deg, #F0DDA6, #E3C36F)", emoji: "🫒" },
+  "Spices & Herbs":   { grad: "linear-gradient(135deg, #E7C9B0, #D69B78)", emoji: "🌿" },
+  "Beverages":        { grad: "linear-gradient(135deg, #D6E6E0, #B7D4CB)", emoji: "🍵" },
+  "Sweets & Snacks":  { grad: "linear-gradient(135deg, #E8D2C6, #D6AF9B)", emoji: "🍫" },
+  "Curries & Dishes": { grad: "linear-gradient(135deg, #F0CBA5, #E0946B)", emoji: "🍛" },
+};
 
 function round(n, d = 1) {
   const p = Math.pow(10, d);
@@ -45,9 +66,12 @@ function NutritionLabel(props) {
     ["Protein", v.protein, "g"],
     ["Total Fat", v.fat, "g"],
   ];
+  const servingText = food.unit
+    ? round(grams / food.unitGrams, 2) + " " + food.unit + (grams === food.unitGrams ? "" : "s") + " (" + round(grams, 0) + "g)"
+    : grams + "g";
   return h("div", { className: "label" },
     h("div", { className: "label__title" }, "Nutrition Facts"),
-    h("div", { className: "label__serving" }, "Amount per ", h("strong", null, grams + "g"), " serving"),
+    h("div", { className: "label__serving" }, "Amount per ", h("strong", null, servingText), " serving"),
     h(RuleThick, null),
     h("div", { className: "label__calories" },
       h("span", null, "Calories"),
@@ -67,19 +91,76 @@ function NutritionLabel(props) {
     )
   );
 }
-
 function FoodCard(props) {
-  const f = props.food;
-  return h("button", { className: "foodCard", onClick: props.onClick, type: "button" },
-    h("div", { className: "foodCard__cat" }, f.cat),
-    h("div", { className: "foodCard__name" }, f.name),
-    h("div", { className: "foodCard__kcal" }, round(f.kcal, 0), h("span", null, " kcal / 100g")),
-    h("div", { className: "foodCard__macros" },
-      h("span", null, "P " + round(f.protein) + "g"),
-      h("span", null, "C " + round(f.carbs) + "g"),
-      h("span", null, "F " + round(f.fat) + "g")
-    )
-  );
+
+    const f = props.food;
+    const isFav = props.favorites.includes(f.id);
+
+    return h("button",
+    {
+        className:"foodCard",
+        onClick:props.onClick,
+        type:"button"
+    },
+
+        h("div",{className:"foodCard__iconWrap"},
+            h("span",{className:"foodCard__icon"},f.icon)
+        ),
+
+        // ❤️ FAVORITE BUTTON
+        h(
+            "button",
+            {
+                className:"favBtn",
+                type:"button",
+
+                onClick:(e)=>{
+
+                    e.stopPropagation();
+
+                    if(isFav){
+
+                        props.setFavorites(
+                            props.favorites.filter(id=>id!==f.id)
+                        );
+
+                    }else{
+
+                        props.setFavorites([
+                            ...props.favorites,
+                            f.id
+                        ]);
+
+                    }
+
+                }
+
+            },
+
+            isFav ? "❤️" : "🤍"
+
+        ),
+
+        h("div",{className:"foodCard__cat"},f.cat),
+
+        h("div",{className:"foodCard__name"},f.name),
+
+        f.unit
+        ? h("div",{className:"foodCard__kcal"},
+            round(f.kcal*f.unitGrams/100,0),
+            h("span",null," kcal / "+f.unit))
+        : h("div",{className:"foodCard__kcal"},
+            round(f.kcal,0),
+            h("span",null," kcal / 100g")),
+
+        h("div",{className:"foodCard__macros"},
+            h("span",null,"P "+round(f.protein)+"g"),
+            h("span",null,"C "+round(f.carbs)+"g"),
+            h("span",null,"F "+round(f.fat)+"g")
+        )
+
+    );
+
 }
 
 // ---------- Browse tab ----------
@@ -88,6 +169,7 @@ function BrowseTab(props) {
   const [query, setQuery] = useState("");
   const [cat, setCat] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
+  const [count, setCount] = useState(1);
   const [grams, setGrams] = useState(100);
 
   const filtered = useMemo(() => {
@@ -99,8 +181,10 @@ function BrowseTab(props) {
   }, [query, cat]);
 
   const selected = FOODS.find(f => f.id === selectedId) || null;
+  const usesUnit = !!(selected && selected.unit);
+  const effectiveGrams = usesUnit ? count * selected.unitGrams : grams;
 
-  useEffect(() => { setGrams(100); }, [selectedId]);
+  useEffect(() => { setGrams(100); setCount(1); }, [selectedId]);
 
   return h("div", { className: "tabPane" },
     h("div", { className: "browseLayout" },
@@ -109,7 +193,7 @@ function BrowseTab(props) {
           h("input", {
             className: "searchInput",
             type: "text",
-            placeholder: "Search 60 foods — try \u201Csalmon\u201D or \u201Cspinach\u201D\u2026",
+            placeholder: `Search among ${FOODS.length} foods...`,
             value: query,
             onChange: e => setQuery(e.target.value),
           }),
@@ -120,9 +204,21 @@ function BrowseTab(props) {
             key: c, active: cat === c, onClick: () => setCat(c),
           }, c))
         ),
+        h("div", {
+          className: "categoryBanner",
+          style: { background: (CATEGORY_THEME[cat] || CATEGORY_THEME.All).grad },
+        },
+          h("span", { className: "categoryBanner__emoji" }, (CATEGORY_THEME[cat] || CATEGORY_THEME.All).emoji),
+          h("span", { className: "categoryBanner__label" }, cat === "All" ? "All Foods" : cat),
+          h("span", { className: "categoryBanner__count" }, filtered.length + (filtered.length === 1 ? " item" : " items"))
+        ),
         h("div", { className: "foodGrid" },
           filtered.map(f => h(FoodCard, {
-            key: f.id, food: f, onClick: () => setSelectedId(f.id),
+            key: f.id,
+            food: f,
+            favorites: props.favorites,
+            setFavorites: props.setFavorites,
+            onClick: () => setSelectedId(f.id),
           })),
           filtered.length === 0 && h("div", { className: "emptyState" },
             "No foods match \u201C" + query + "\u201D. Try another search or category.")
@@ -132,26 +228,42 @@ function BrowseTab(props) {
         selected
           ? h("div", { className: "labelPanel" },
               h("div", { className: "labelPanel__head" },
-                h("div", null,
-                  h("div", { className: "labelPanel__cat" }, selected.cat),
-                  h("div", { className: "labelPanel__name" }, selected.name)
+                h("div", { className: "labelPanel__headLeft" },
+                  h("span", { className: "labelPanel__icon" }, selected.icon),
+                  h("div", null,
+                    h("div", { className: "labelPanel__cat" }, selected.cat),
+                    h("div", { className: "labelPanel__name" }, selected.name)
+                  )
                 ),
                 h("button", { className: "iconBtn", onClick: () => setSelectedId(null), type: "button", "aria-label": "Close" }, "\u2715")
               ),
               h("div", { className: "gramsRow" },
-                h("label", { htmlFor: "grams-input" }, "Portion size"),
-                h("input", {
-                  id: "grams-input", type: "number", min: "1", value: grams,
-                  onChange: e => setGrams(Math.max(1, Number(e.target.value) || 0)),
-                }),
-                h("span", null, "g")
+                usesUnit
+                  ? h(React.Fragment, null,
+                      h("label", { htmlFor: "grams-input" }, "How many " + selected.unit + "s"),
+                      h("input", {
+                        id: "grams-input", type: "number", min: "0.25", step: "0.25", value: count,
+                        onChange: e => setCount(Math.max(0.25, Number(e.target.value) || 0)),
+                      }),
+                      h("span", { className: "gramsRow__hint" }, "= " + round(effectiveGrams, 0) + "g")
+                    )
+                  : h(React.Fragment, null,
+                      h("label", { htmlFor: "grams-input" }, "Portion size"),
+                      h("input", {
+                        id: "grams-input", type: "number", min: "1", value: grams,
+                        onChange: e => setGrams(Math.max(1, Number(e.target.value) || 0)),
+                      }),
+                      h("span", null, "g")
+                    )
               ),
-              h(NutritionLabel, { food: selected, grams: grams }),
+              h(NutritionLabel, { food: selected, grams: effectiveGrams }),
               h("button", {
                 className: "btn btn--primary btn--block",
                 type: "button",
-                onClick: () => props.onAddToLog(selected, grams),
-              }, "Add " + grams + "g to today\u2019s log")
+                onClick: () => props.onAddToLog(selected, effectiveGrams),
+              }, usesUnit
+                  ? "Add " + count + " " + selected.unit + (count === 1 ? "" : "s") + " to today\u2019s log"
+                  : "Add " + grams + "g to today\u2019s log")
             )
           : h("div", { className: "labelPanel labelPanel--empty" },
               h("div", { className: "labelPanel__hint" },
@@ -201,10 +313,10 @@ function EncyclopediaTab() {
   return h("div", { className: "tabPane" },
     h("div", { className: "encHead" },
       h("h2", null, "The Nutrient Encyclopedia"),
-      h("p", { className: "encSub" }, "11 vitamins and 11 minerals \u2014 what each does, where to find it, and what happens if you run short.")
+      h("p", { className: "encSub" }, "5 macronutrients, 11 vitamins and 11 minerals \u2014 what each does, where to find it, and what happens if you run short.")
     ),
     h("div", { className: "chipRow" },
-      ["All", "Vitamin", "Mineral"].map(t => h(Chip, {
+      ["All", "Macronutrient", "Vitamin", "Mineral"].map(t => h(Chip, {
         key: t, active: filter === t, onClick: () => setFilter(t),
       }, t === "All" ? "All" : t + "s"))
     ),
@@ -246,6 +358,7 @@ function ProgressBar(props) {
 function QuickAdd(props) {
   const [query, setQuery] = useState("");
   const [grams, setGrams] = useState(100);
+  const [count, setCount] = useState(1);
   const matches = query.length > 0
     ? FOODS.filter(f => f.name.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
     : [];
@@ -256,16 +369,26 @@ function QuickAdd(props) {
         value: query, onChange: e => setQuery(e.target.value),
       }),
       h("input", {
-        className: "quickAdd__grams", type: "number", min: "1", value: grams,
-        onChange: e => setGrams(Math.max(1, Number(e.target.value) || 0)),
+        className: "quickAdd__grams", type: "number", min: "0.25", step: "0.25",
+        value: matches.length === 1 && matches[0].unit ? count : grams,
+        onChange: e => {
+          const val = Math.max(0.25, Number(e.target.value) || 0);
+          setGrams(val); setCount(val);
+        },
       }),
-      h("span", null, "g")
+      h("span", null, matches.length === 1 && matches[0].unit ? matches[0].unit + "(s)" : "g")
     ),
     matches.length > 0 && h("div", { className: "quickAdd__matches" },
       matches.map(f => h("button", {
         key: f.id, type: "button", className: "quickAdd__match",
-        onClick: () => { props.onAdd(f, grams); setQuery(""); },
-      }, f.name, h("span", null, round(f.kcal, 0) + " kcal/100g")))
+        onClick: () => {
+          const g = f.unit ? count * f.unitGrams : grams;
+          props.onAdd(f, g);
+          setQuery("");
+        },
+      }, f.name, h("span", null, f.unit
+          ? round(f.kcal * f.unitGrams / 100, 0) + " kcal/" + f.unit
+          : round(f.kcal, 0) + " kcal/100g")))
     )
   );
 }
@@ -294,9 +417,12 @@ function TrackerTab(props) {
               ),
               log.map(entry => {
                 const v = scale(entry.food, entry.grams);
+                const portionText = entry.food.unit
+                  ? round(entry.grams / entry.food.unitGrams, 2) + " " + entry.food.unit + "(s)"
+                  : entry.grams + "g";
                 return h("div", { className: "logTable__row", key: entry.uid },
                   h("span", { className: "logTable__name" }, entry.food.name),
-                  h("span", null, entry.grams + "g"),
+                  h("span", null, portionText),
                   h("span", null, round(v.kcal, 0)),
                   h("span", null, round(v.protein, 0) + "g"),
                   h("span", null, round(v.carbs, 0) + "g"),
@@ -333,15 +459,177 @@ function TrackerTab(props) {
     )
   );
 }
+function HealthTab(){
+
+    const [age,setAge]=useState(20);
+    const [gender,setGender]=useState("male");
+    const [height,setHeight]=useState(181);
+    const [weight,setWeight]=useState(87);
+    const [activity,setActivity]=useState(1.55);
+
+    const bmi=weight/Math.pow(height/100,2);
+
+    const bmiStatus=
+        bmi<18.5?"Underweight":
+        bmi<25?"Healthy":
+        bmi<30?"Overweight":
+        "Obese";
+
+    const bmr=
+        gender==="male"
+        ?10*weight+6.25*height-5*age+5
+        :10*weight+6.25*height-5*age-161;
+
+    const tdee=bmr*activity;
+
+    return h("div",{className:"healthPage"},
+
+        h("h2",null,"Health Tools"),
+
+        h("div",{className:"healthGrid"},
+
+            h("label",null,
+                "Age",
+                h("input",{
+                    type:"number",
+                    value:age,
+                    onChange:e=>setAge(Number(e.target.value))
+                })
+            ),
+
+            h("label",null,
+                "Height (cm)",
+                h("input",{
+                    type:"number",
+                    value:height,
+                    onChange:e=>setHeight(Number(e.target.value))
+                })
+            ),
+
+            h("label",null,
+                "Weight (kg)",
+                h("input",{
+                    type:"number",
+                    value:weight,
+                    onChange:e=>setWeight(Number(e.target.value))
+                })
+            ),
+
+            h("label",null,
+                "Gender",
+                h("select",{
+                    value:gender,
+                    onChange:e=>setGender(e.target.value)
+                },
+                    h("option",{value:"male"},"Male"),
+                    h("option",{value:"female"},"Female")
+                )
+            ),
+
+            h("label",null,
+                "Activity",
+                h("select",{
+                    value:activity,
+                    onChange:e=>setActivity(Number(e.target.value))
+                },
+                    h("option",{value:1.2},"Sedentary"),
+                    h("option",{value:1.375},"Light"),
+                    h("option",{value:1.55},"Moderate"),
+                    h("option",{value:1.725},"Active"),
+                    h("option",{value:1.9},"Very Active")
+                )
+            )
+
+        ),
+
+        h("div",{className:"healthResults"},
+
+            h("div",{className:"healthCard"},
+                h("h3",null,"BMI"),
+                h("h1",null,round(bmi,1)),
+               h(
+    "p",
+    {
+        style:{
+            fontSize:"22px",
+            color:
+                bmi<18.5?"#3b82f6":
+                bmi<25?"#16a34a":
+                bmi<30?"#f59e0b":
+                "#dc2626"
+        }
+    },
+    bmiStatus
+)
+            ),
+
+            h("div",{className:"healthCard"},
+                h("h3",null,"BMR"),
+                h("h1",null,round(bmr,0)),
+                h("p",null,"kcal/day")
+            ),
+
+           h("div",{className:"healthCard"},
+
+    h("h3",null,"TDEE"),
+
+    h("p",null,"🔥 Maintenance"),
+    h("h2",null,round(tdee,0)+" kcal"),
+
+    h("hr"),
+
+    h("p",null,"⬇ Fat Loss"),
+    h("h2",null,round(tdee-500,0)+" kcal"),
+
+    h("hr"),
+
+    h("p",null,"⬆ Lean Bulk"),
+    h("h2",null,round(tdee+250,0)+" kcal")
+
+)
+
+        )
+
+    );
+
+}
 
 // ---------- App shell ----------
 
 function App() {
   const [tab, setTab] = useState("browse");
-  const [log, setLog] = useState([]);
+  //dark mode
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem(STORAGE_THEME) === "dark";});
+  //favourite
+  const [favorites, setFavorites] = useState(() => {
+    return JSON.parse(localStorage.getItem("favorites") || "[]");
+});
+    const [log, setLog] = useState([]);
   const [goals, setGoals] = useState({ kcal: 2000, protein: 90, carbs: 250, fat: 65 });
   const [toast, setToast] = useState("");
   const uidRef = useRef(0);
+
+  useEffect(() => {
+
+    if (darkMode) {
+        document.body.classList.add("dark");
+    } else {
+        document.body.classList.remove("dark");
+    }
+
+    localStorage.setItem(
+        STORAGE_THEME,
+        darkMode ? "dark" : "light"
+    );
+
+}, [darkMode]);
+useEffect(() => {
+    localStorage.setItem(
+        "favorites",
+        JSON.stringify(favorites)
+    );
+}, [favorites]);
 
   function addToLog(food, grams) {
     uidRef.current += 1;
@@ -353,20 +641,40 @@ function App() {
     setLog(prev => prev.filter(e => e.uid !== uid));
   }
 
-  const TABS = [
-    { id: "browse", label: "Browse Foods" },
-    { id: "encyclopedia", label: "Nutrient Encyclopedia" },
-    { id: "tracker", label: "Daily Tracker" },
-  ];
+const TABS = [
+  { id: "browse", label: "Browse Foods" },
+  { id: "encyclopedia", label: "Nutrient Encyclopedia" },
+  { id: "tracker", label: "Daily Tracker" },
+  { id: "health", label: "🧮 Health Tools" },
+];
 
   return h("div", { className: "app" },
     h("header", { className: "hero" },
-      h("div", { className: "hero__eyebrow" }, "60 FOODS \u00B7 22 NUTRIENTS \u00B7 1 DAILY LOG"),
+      h(
+    "div",
+    { className: "hero__eyebrow" },
+    FOODS.length + " FOODS • " + NUTRIENTS.length + " NUTRIENTS • DAILY TRACKER"
+),
       h("h1", { className: "hero__title" }, "The Nutrition Almanac"),
-      h("p", { className: "hero__sub" },
-        "An ocean of knowledge about what you eat \u2014 calories, protein, carbs, fat, fibre and sugar for sixty everyday foods, plus a field guide to every vitamin and mineral your body runs on."
-      )
-    ),
+      h(
+    "p",
+    { className: "hero__sub" },
+    `An ocean of knowledge about ${FOODS.length} foods with calories, protein, carbs, fats, vitamins and minerals.`
+),
+      // 👇 ADD THIS
+    h(
+      "button",
+      {
+        className: "btn",
+        type: "button",
+        style: { marginTop: "20px" },
+        onClick: () => setDarkMode(!darkMode)
+      },
+      darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"
+    )
+
+  ),
+    
     h("nav", { className: "tabs" },
       TABS.map(t => h("button", {
         key: t.id, type: "button",
@@ -374,11 +682,16 @@ function App() {
         onClick: () => setTab(t.id),
       }, t.label))
     ),
-    tab === "browse" && h(BrowseTab, { onAddToLog: addToLog }),
+   tab === "browse" && h(BrowseTab, {
+    onAddToLog: addToLog,
+    favorites,
+    setFavorites
+}),
     tab === "encyclopedia" && h(EncyclopediaTab, null),
     tab === "tracker" && h(TrackerTab, {
       log: log, goals: goals, setGoals: setGoals, onAdd: addToLog, onRemove: removeFromLog,
     }),
+    tab === "health" && h(HealthTab),
     toast && h("div", { className: "toast" }, toast),
     h("footer", { className: "footer" },
       "Values are typical figures per 100g and are meant for everyday planning, not medical advice."
