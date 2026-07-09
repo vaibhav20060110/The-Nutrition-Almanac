@@ -167,19 +167,61 @@ function FoodCard(props) {
 
 function BrowseTab(props) {
   const [query, setQuery] = useState("");
+  const [sortBy, setSortBy] = useState("default");
   const [cat, setCat] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
   const [count, setCount] = useState(1);
   const [grams, setGrams] = useState(100);
 
-  const filtered = useMemo(() => {
-    return FOODS.filter(f => {
-      const matchesCat = cat === "All" || f.cat === cat;
-      const matchesQuery = f.name.toLowerCase().includes(query.toLowerCase());
-      return matchesCat && matchesQuery;
-    });
-  }, [query, cat]);
+const filtered = useMemo(() => {
 
+    let foods = FOODS.filter(f => {
+
+        const matchesCat = cat === "All" || f.cat === cat;
+        const matchesQuery = f.name.toLowerCase().includes(query.toLowerCase());
+
+        return matchesCat && matchesQuery;
+
+    });
+
+    switch(sortBy){
+
+        case "caloriesAsc":
+            foods.sort((a,b)=>a.kcal-b.kcal);
+            break;
+
+        case "caloriesDesc":
+            foods.sort((a,b)=>b.kcal-a.kcal);
+            break;
+
+        case "protein":
+            foods.sort((a,b)=>b.protein-a.protein);
+            break;
+
+        case "carbs":
+            foods.sort((a,b)=>b.carbs-a.carbs);
+            break;
+
+        case "fat":
+            foods.sort((a,b)=>b.fat-a.fat);
+            break;
+
+        case "nameAsc":
+            foods.sort((a,b)=>a.name.localeCompare(b.name));
+            break;
+
+        case "nameDesc":
+            foods.sort((a,b)=>b.name.localeCompare(a.name));
+            break;
+
+        default:
+            break;
+
+    }
+
+    return foods;
+
+}, [query, cat, sortBy]);
   const selected = FOODS.find(f => f.id === selectedId) || null;
   const usesUnit = !!(selected && selected.unit);
   const effectiveGrams = usesUnit ? count * selected.unitGrams : grams;
@@ -189,16 +231,38 @@ function BrowseTab(props) {
   return h("div", { className: "tabPane" },
     h("div", { className: "browseLayout" },
       h("div", { className: "browseMain" },
-        h("div", { className: "searchRow" },
-          h("input", {
-            className: "searchInput",
-            type: "text",
-            placeholder: `Search among ${FOODS.length} foods...`,
-            value: query,
-            onChange: e => setQuery(e.target.value),
-          }),
-          h("div", { className: "resultCount" }, filtered.length + " results")
-        ),
+       h("div", { className: "searchRow" },
+
+    h("input", {
+        className: "searchInput",
+        type: "text",
+        placeholder: `Search among ${FOODS.length} foods...`,
+        value: query,
+        onChange: e => setQuery(e.target.value),
+    }),
+
+    h(
+        "select",
+        {
+            className: "sortSelect",
+            value: sortBy,
+            onChange: e => setSortBy(e.target.value)
+        },
+
+        h("option", { value: "default" }, "Default"),
+        h("option", { value: "nameAsc" }, "Name A-Z"),
+        h("option", { value: "nameDesc" }, "Name Z-A"),
+        h("option", { value: "caloriesAsc" }, "Calories ↑"),
+        h("option", { value: "caloriesDesc" }, "Calories ↓"),
+        h("option", { value: "protein" }, "Protein ↑"),
+        h("option", { value: "carbs" }, "Carbs ↑"),
+        h("option", { value: "fat" }, "Fat ↑")
+
+    ),
+
+    h("div", { className: "resultCount" }, filtered.length + " results")
+
+),
         h("div", { className: "chipRow" },
           CATEGORIES.map(c => h(Chip, {
             key: c, active: cat === c, onClick: () => setCat(c),
@@ -597,6 +661,130 @@ function HealthTab(){
 // ---------- App shell ----------
 
 function App() {
+  function row(name,a,b,unit){
+
+    return h("tr",null,
+
+        h("td",null,name),
+
+        h("td",{
+
+            style:{
+                fontWeight:a>b?"700":"400",
+                color:a>b?"#16a34a":""
+            }
+
+        },a+" "+unit),
+
+        h("td",{
+
+            style:{
+                fontWeight:b>a?"700":"400",
+                color:b>a?"#16a34a":""
+            }
+
+        },b+" "+unit)
+
+    );
+
+}
+  function CompareTab(){
+
+    const [food1,setFood1]=useState(FOODS[0].id);
+    const [food2,setFood2]=useState(FOODS[1].id);
+
+    const f1=FOODS.find(f=>f.id===food1);
+    const f2=FOODS.find(f=>f.id===food2);
+
+    return h("div",{className:"healthPage"},
+
+        h("h2",null,"⚖ Compare Foods"),
+
+        h("div",{className:"healthGrid"},
+
+            h("label",null,
+
+                "Food 1",
+
+                h("select",{
+
+                    value:food1,
+
+                    onChange:e=>setFood1(e.target.value)
+
+                },
+
+                    FOODS.map(f=>
+
+                        h("option",{key:f.id,value:f.id},f.name)
+
+                    )
+
+                )
+
+            ),
+
+            h("label",null,
+
+                "Food 2",
+
+                h("select",{
+
+                    value:food2,
+
+                    onChange:e=>setFood2(e.target.value)
+
+                },
+
+                    FOODS.map(f=>
+
+                        h("option",{key:f.id,value:f.id},f.name)
+
+                    )
+
+                )
+
+            )
+
+        ),
+
+        h("table",{className:"compareTable"},
+
+            h("thead",null,
+
+                h("tr",null,
+
+                    h("th",null,"Nutrient"),
+
+                    h("th",null,f1.name),
+
+                    h("th",null,f2.name)
+
+                )
+
+            ),
+
+            h("tbody",null,
+
+                row("Calories",f1.kcal,f2.kcal,"kcal"),
+
+                row("Protein",f1.protein,f2.protein,"g"),
+
+                row("Carbs",f1.carbs,f2.carbs,"g"),
+
+                row("Fat",f1.fat,f2.fat,"g"),
+
+                row("Fiber",f1.fiber,f2.fiber,"g"),
+
+                row("Sugar",f1.sugar,f2.sugar,"g")
+
+            )
+
+        )
+
+    );
+
+}
   const [tab, setTab] = useState("browse");
   //dark mode
   const [darkMode, setDarkMode] = useState(() => {
@@ -640,12 +828,12 @@ useEffect(() => {
   function removeFromLog(uid) {
     setLog(prev => prev.filter(e => e.uid !== uid));
   }
-
 const TABS = [
   { id: "browse", label: "Browse Foods" },
   { id: "encyclopedia", label: "Nutrient Encyclopedia" },
   { id: "tracker", label: "Daily Tracker" },
   { id: "health", label: "🧮 Health Tools" },
+  { id: "compare", label: "⚖ Compare Foods" },
 ];
 
   return h("div", { className: "app" },
@@ -692,6 +880,7 @@ const TABS = [
       log: log, goals: goals, setGoals: setGoals, onAdd: addToLog, onRemove: removeFromLog,
     }),
     tab === "health" && h(HealthTab),
+    tab==="compare" && h(CompareTab),
     toast && h("div", { className: "toast" }, toast),
     h("footer", { className: "footer" },
       "Values are typical figures per 100g and are meant for everyday planning, not medical advice."
