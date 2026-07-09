@@ -597,3 +597,180 @@ html, body {
   .hero { padding: 40px 0 22px; }
   .foodGrid { grid-template-columns: 1fr 1fr; }
 }
+/* ==========================================================
+   DARK MODE
+========================================================== */
+
+html{
+    transition: background .3s,color .3s;
+}
+
+body,
+.foodCard,
+.labelPanel,
+.goalsCard,
+.totalsCard,
+.chip,
+.searchInput,
+.quickAdd__grams,
+.goalField input,
+.gramsRow input,
+.quickAdd__matches,
+.label{
+    transition:
+        background .3s,
+        color .3s,
+        border-color .3s,
+        box-shadow .3s;
+}
+
+body.dark{
+
+    --paper:#111827;
+    --card:#1f2937;
+
+    --ink:#F8FAFC;
+
+    --forest:#22C55E;
+    --forest-deep:#16A34A;
+
+    --gold:#F59E0B;
+
+    --tomato:#EF4444;
+
+    --sage:#374151;
+
+    --line:#4B5563;
+
+    --muted:#CBD5E1;
+}
+
+body.dark .foodCard:hover{
+    box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+
+body.dark .progress__track{
+    background:#374151;
+}
+
+body.dark .toast{
+    background:#16A34A;
+}
+
+body.dark .searchInput::placeholder{
+    color:#94A3B8;
+}
+
+/* ===========================
+   HEALTH TOOLS
+=========================== */
+
+.healthPage{
+    max-width:1100px;
+    margin:40px auto;
+}
+
+.healthPage h2{
+    text-align:center;
+    font-size:34px;
+    margin-bottom:35px;
+}
+
+.healthGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+    margin-bottom:40px;
+}
+
+.healthGrid label{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    font-weight:600;
+}
+
+.healthGrid input,
+.healthGrid select{
+    padding:14px;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+    font-size:16px;
+}
+
+.healthResults{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:25px;
+}
+
+.healthCard{
+
+    background:var(--card);
+
+    border-radius:22px;
+
+    padding:30px;
+
+    text-align:center;
+
+    box-shadow:0 12px 30px rgba(0,0,0,.08);
+
+    transition:.25s;
+
+    border:1px solid var(--line);
+
+}
+
+.healthCard:hover{
+
+    transform:translateY(-6px);
+
+    box-shadow:0 18px 40px rgba(0,0,0,.15);
+
+}
+
+.healthCard h3{
+
+    font-size:20px;
+
+    color:var(--muted);
+
+    margin-bottom:15px;
+
+}
+
+.healthCard h1{
+
+    font-size:52px;
+
+    color:var(--forest);
+
+    margin:10px 0;
+
+}
+
+.healthCard p{
+
+    font-size:18px;
+
+    font-weight:600;
+
+}
+
+.foodCard{
+    position:relative;
+}
+
+.favBtn{
+    position:absolute;
+    top:12px;
+    right:12px;
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:22px;
+    z-index:5;
+}
