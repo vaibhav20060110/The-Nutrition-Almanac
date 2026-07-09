@@ -774,3 +774,45 @@ body.dark .searchInput::placeholder{
     font-size:22px;
     z-index:5;
 }
+
+.compareTable{
+
+    width:100%;
+
+    margin-top:35px;
+
+    border-collapse:collapse;
+
+    background:var(--card);
+
+    border-radius:18px;
+
+    overflow:hidden;
+
+}
+
+.compareTable th{
+
+    background:#16a34a;
+
+    color:white;
+
+    padding:18px;
+
+}
+
+.compareTable td{
+
+    padding:16px;
+
+    text-align:center;
+
+    border-bottom:1px solid var(--line);
+
+}
+
+.compareTable tr:hover{
+
+    background:rgba(22,163,74,.08);
+
+}
