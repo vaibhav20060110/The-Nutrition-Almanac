@@ -19,7 +19,7 @@
 
 ## 🌐 Live Demo
 
-🔗 https://nutrition-almanac.netlify.app/
+🔗https://the-nutrition-almanac.netlify.app/
 
 ---
 
